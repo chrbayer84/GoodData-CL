@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2009, GoodData Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided
@@ -29,7 +29,6 @@ import com.gooddata.integration.model.Column;
 import com.gooddata.integration.model.Project;
 import com.gooddata.integration.model.SLI;
 import com.gooddata.integration.rest.configuration.NamePasswordConfiguration;
-import com.gooddata.util.FileUtil;
 import com.gooddata.util.NetUtil;
 
 import net.sf.json.JSON;
@@ -81,10 +80,9 @@ public class GdcRESTApiWrapper {
     private static final String TOKEN_URI = "/gdc/account/token";
     private static final String DATA_INTERFACES_URI = "/ldm/singleloadinterface";
     private static final String PROJECTS_URI = "/gdc/projects";
-    private static final String PULL_URI = "/etl/pull";
+    private static final String PULL_URI = "/etl/pull2";
     private static final String IDENTIFIER_URI = "/identifiers";
     private static final String SLI_DESCRIPTOR_URI = "/descriptor";
-    public static final String MAQL_EXEC_URI = "/ldm/manage";
     public static final String MAQL_ASYNC_EXEC_URI = "/ldm/manage2";
     public static final String DML_EXEC_URI = "/dml/manage";
     public static final String PROJECT_EXPORT_URI = "/maintenance/export";
@@ -105,7 +103,7 @@ public class GdcRESTApiWrapper {
     public static final String LINKS_UPLOADS_KEY = "uploads";
 
     public static final String DLI_MANIFEST_FILENAME = "upload_info.json";
-    
+
     public static final String QUERY_PROJECTDASHBOARDS = "projectdashboards";
     public static final String QUERY_FOLDERS = "folders";
     public static final String QUERY_DATASETS = "datasets";
@@ -886,7 +884,7 @@ public class GdcRESTApiWrapper {
         boolean hasFinished = false;
         while (retryCnt-- > 0 && !hasFinished) {
             try {
-                String dataResultUri = executeReport(reportUri);
+                String dataResultUri = executeReport(reportUri).getJSONObject("execResult").getString("dataResult");
                 JSONObject result = getObjectByUri(dataResultUri);
                 hasFinished = true;
                 if (result != null && !result.isEmpty() && !result.isNullObject()) {
@@ -1041,11 +1039,12 @@ public class GdcRESTApiWrapper {
     }
 
     /**
-     * Report to execute
+     * Report to execute.
      *
+     * @return JSON representation of the report result (the "execResult" object including the "execResult" root key)
      * @param reportUri report definition to execute
      */
-    public String executeReport(String reportUri) {
+    public JSONObject executeReport(String reportUri) {
         l.debug("Executing report uri=" + reportUri);
         PostMethod execPost = createPostMethod(getServerUrl() + EXECUTOR);
         JSONObject execDef = new JSONObject();
@@ -1076,7 +1075,7 @@ public class GdcRESTApiWrapper {
                     throw new GdcRestApiException("Executing report uri=" + reportUri + " failed. " +
                             "Returned invalid dataResult=" + tr);
                 }
-                return dataResult;
+                return tr;
             } else {
                 l.debug("Executing report uri=" + reportUri + " failed. Returned invalid task link uri=" + task);
                 throw new GdcRestApiException("Executing report uri=" + reportUri +
@@ -1093,14 +1092,15 @@ public class GdcRESTApiWrapper {
     /**
      * Export a report result
      *
-     * @param resultUri report result to export
+     * @param execResult object returned by the {@link #executeReport(String)} method
      * @param format    export format (pdf | xls | png | csv)
      */
-    public byte[] exportReportResult(String resultUri, String format) {
+    public byte[] exportReportResult(JSONObject execResult, String format) {
+    	String resultUri = execResult.getJSONObject("execResult").getString("dataResult");
         l.debug("Exporting report result uri=" + resultUri);
         PostMethod execPost = createPostMethod(getServerUrl() + EXPORT_EXECUTOR);
         JSONObject execDef = new JSONObject();
-        execDef.put("report", resultUri);
+        execDef.put("result", execResult);
         execDef.put("format", format);
         JSONObject exec = new JSONObject();
         exec.put("result_req", execDef);
@@ -1189,7 +1189,7 @@ public class GdcRESTApiWrapper {
         try {
             String response = executeMethodOk(pullPost);
             JSONObject responseObject = JSONObject.fromObject(response);
-            taskLink = responseObject.getJSONObject("pullTask").getString("uri");
+            taskLink = responseObject.getJSONObject("pull2Task").getJSONObject("links").getString("poll");
         } catch (HttpMethodException ex) {
             throw new GdcRestApiException("Loading fails: " + ex.getMessage());
         } finally {
@@ -1224,7 +1224,7 @@ public class GdcRESTApiWrapper {
         try {
             String response = executeMethodOk(ptm);
             JSONObject task = JSONObject.fromObject(response);
-            String status = task.getString("taskStatus");
+            String status = task.getJSONObject("wTaskStatus").getString("status");
             l.debug("Loading status=" + status);
             return status;
         } finally {
@@ -1872,7 +1872,7 @@ public class GdcRESTApiWrapper {
 		public void setEmail(String email) {
 			this.email = email;
 		}
-		
+
 		@Override
         public String toString() {
             return "DWGdcUser [getLogin()=" + getLogin() + ", getUri()=" + getUri() + ", getStatus()=" + getStatus()
@@ -3194,7 +3194,7 @@ public class GdcRESTApiWrapper {
         request.setRequestHeader("Content-Type", "application/json; charset=utf-8");
         request.setRequestHeader("Accept", "application/json");
         request.setRequestHeader("Accept-Charset", "utf-u");
-        request.setRequestHeader("User-Agent", "GoodData CL/1.2.67");
+        request.setRequestHeader("User-Agent", "GoodData CL/1.3.0");
         request.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
         return request;
     }
@@ -3206,10 +3206,10 @@ public class GdcRESTApiWrapper {
             super.finalize();
         }
     }
-    
+
     /**
      * API for querying users in a domain
-     * 
+     *
      * @param domain
      * @return
      */
@@ -3368,7 +3368,7 @@ public class GdcRESTApiWrapper {
     /**
      * Checks if report copying is finished. Workaround implementation due to
      * wrong handling of status code.
-     * 
+     *
      * @param link
      *            the link returned from the start loading
      * @return the loading status
@@ -3406,11 +3406,11 @@ public class GdcRESTApiWrapper {
 	    ptm.releaseConnection();
 	}
     }
-    
+
 
     /**
      * Retrieves the project info by the project's name
-     * 
+     *
      * @param name
      *            the project name
      * @return the GoodDataProjectInfo populated with the project's information
@@ -3442,7 +3442,7 @@ public class GdcRESTApiWrapper {
 
     /**
      * Returns the existing projects links
-     * 
+     *
      * @return accessible projects links
      * @throws com.gooddata.exception.HttpMethodException
      */
@@ -3465,7 +3465,7 @@ public class GdcRESTApiWrapper {
 
     /**
      * Create a new GoodData project
-     * 
+     *
      * @param name
      *            project name
      * @param desc
@@ -3480,11 +3480,11 @@ public class GdcRESTApiWrapper {
 	    throws GdcRestApiException {
 	    return this.createProject(name, desc, templateUri, null, null);
     }
-    
+
     /**
      * Returns the List of GoodDataProjectInfo structures for the accessible
      * projects
-     * 
+     *
      * @return the List of GoodDataProjectInfo structures for the accessible
      *         projects
      * @throws HttpMethodException
