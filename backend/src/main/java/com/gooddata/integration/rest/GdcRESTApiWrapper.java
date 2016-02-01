@@ -84,6 +84,7 @@ public class GdcRESTApiWrapper {
     private static final String IDENTIFIER_URI = "/identifiers";
     private static final String SLI_DESCRIPTOR_URI = "/descriptor";
     public static final String MAQL_ASYNC_EXEC_URI = "/ldm/manage2";
+    public static final String MAQL_EXEC_URI = "/ldm/manage";
     public static final String DML_EXEC_URI = "/dml/manage";
     public static final String PROJECT_EXPORT_URI = "/maintenance/export";
     public static final String PROJECT_IMPORT_URI = "/maintenance/import";
