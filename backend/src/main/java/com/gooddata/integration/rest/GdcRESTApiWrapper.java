@@ -1373,64 +1373,6 @@ public class GdcRESTApiWrapper {
     }
 
     /**
-     * Executes the MAQL and creates/modifies the project's LDM
-     *
-     * @param projectId the project's ID
-     * @param maql      String with the MAQL statements
-     * @return result String
-     * @throws GdcRestApiException
-     */
-    public String[] executeMAQL(String projectId, String maql) throws GdcRestApiException {
-        l.debug("Executing MAQL projectId=" + projectId + " MAQL:\n" + maql);       
-        List<String> results = new ArrayList<String>();
-        for (String maqlSplit : splitMAQL(maql)) {
-            PostMethod maqlPost = createPostMethod(getProjectMdUrl(projectId) + MAQL_EXEC_URI);
-            JSONObject maqlStructure = getMAQLExecStructure(maqlSplit);
-            InputStreamRequestEntity request = new InputStreamRequestEntity(new ByteArrayInputStream(
-                    maqlStructure.toString().getBytes()));
-            maqlPost.setRequestEntity(request);
-            try {
-                String response = executeMethodOk(maqlPost);
-                JSONObject responseObject = JSONObject.fromObject(response);
-                JSONArray uris = responseObject.getJSONArray("uris");
-                List<String> jsonResult = JSONArray.toList(uris, String.class);
-                results.addAll(jsonResult);
-            } catch (HttpMethodException ex) {
-                l.debug("MAQL execution: ", ex);
-                throw new GdcRestApiException("MAQL execution: " + ex.getMessage(), ex);
-            } finally {
-                maqlPost.releaseConnection();
-            }
-        }
-        return results.toArray(new String[results.size()]);
-    }
-
-    
-    /**
-     * Split maql if size of executed script is likely to exceed 60s timeout on backend. 
-     *
-     * @see http://support.gooddata.com/requests/17258
-     * @param maql the maql
-     * @return the string[]
-     */
-    protected List<String> splitMAQL(String maql) {	
-	List<String> splits = new ArrayList<String>();
-	List<String> maqlLines = Arrays.asList(NEWLINE_SEPARATOR_PARSER.split(maql));
-	// split if we have more than 50 lines of MAQL 
-	if (maqlLines.size() >= 1000) {
-	    // bisect: left part..
-	    int halfSize =maqlLines.size()/2;
-	    splits.addAll(splitMAQL(StringUtils.join(maqlLines.subList(0,halfSize), "\n")));
-	    // .. and right part
-	    splits.addAll(splitMAQL(StringUtils.join( maqlLines.subList(halfSize, maqlLines.size()),"\n")));
-	}else {
-	    // small enough, add string as a whole
-	    splits.add( StringUtils.join(maqlLines, "\n"));
-	}
-	return splits;
-    }
-
-    /**
      * Executes the MAQL and creates/modifies the project's LDM asynchronously
      *
      * @param projectId the project's ID
@@ -1445,7 +1387,6 @@ public class GdcRESTApiWrapper {
         InputStreamRequestEntity request = new InputStreamRequestEntity(new ByteArrayInputStream(
                 maqlStructure.toString().getBytes()));
         maqlPost.setRequestEntity(request);
-        String result = null;
         try {
             String response = executeMethodOk(maqlPost);
             JSONObject responseObject = JSONObject.fromObject(response);

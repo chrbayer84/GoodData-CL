@@ -117,35 +117,5 @@ public class TestGdcRestApiWrapper extends TestCase {
             e.printStackTrace();
         }
     }
-    
-    public void testSplitMaqlSmall(){
-   	GdcRESTApiWrapper rest = new GdcRESTApiWrapper(config);
-   	String input = "SYNCHRONIZE {dataset.shippingorderitemcsv};\n\n" +
-			"# add dummy lines\n" +
-			"# add dummy lines";
-   	List<String> splitMAQL = rest.splitMAQL(input);
-   	Assert.assertEquals(1, splitMAQL.size());
-   	Assert.assertEquals(input, splitMAQL.get(0));
-   }
-
-    
-    public void testSplitMaqlLarge() throws IOException{
-	GdcRESTApiWrapper rest = new GdcRESTApiWrapper(config);
-	InputStream inputFileStream = Thread.currentThread().getContextClassLoader().getResourceAsStream( "large.maql" );
-	String maqlString = IOUtils.toString(inputFileStream);
-	List<String> splitMAQL = rest.splitMAQL(maqlString);
-	l.error(splitMAQL);
-	
-	Assert.assertEquals(4, splitMAQL.size());
-	InputStream outputFileStreamPart1 = Thread.currentThread().getContextClassLoader().getResourceAsStream( "large.maql.1" );
-	InputStream outputFileStreamPart2 = Thread.currentThread().getContextClassLoader().getResourceAsStream( "large.maql.2" );
-	InputStream outputFileStreamPart3 = Thread.currentThread().getContextClassLoader().getResourceAsStream( "large.maql.3" );
-	InputStream outputFileStreamPart4 = Thread.currentThread().getContextClassLoader().getResourceAsStream( "large.maql.4" );
-	
-	Assert.assertEquals( IOUtils.toString(outputFileStreamPart1),splitMAQL.get(0));
-	Assert.assertEquals( IOUtils.toString(outputFileStreamPart2),splitMAQL.get(1));
-	Assert.assertEquals( IOUtils.toString(outputFileStreamPart3),splitMAQL.get(2));
-	Assert.assertEquals( IOUtils.toString(outputFileStreamPart4),splitMAQL.get(3));
-    }
 
 }
